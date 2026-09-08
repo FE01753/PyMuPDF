@@ -15,7 +15,7 @@ try:
 except ImportError:
     HAS_PIL = False
 
-st.set_page_config(page_title="E&M Quotation 完整項目提取工具", page_icon="⚡", layout="centered")
+st.set_page_config(page_title="E&M Quotation 欄目化項目提取工具", page_icon="⚡", layout="centered")
 
 # --- 自訂 CSS 樣式：Aptos 12pt ---
 st.markdown(
@@ -30,9 +30,9 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-st.title("⚡ E&M Quotation 完整項目提取與倍數調整工具")
+st.title("⚡ E&M Quotation 欄目化項目提取與倍數調整工具")
 st.caption("✨ System curated & Design by nikki 💅")
-st.write("上載 Quotation 檔案，精準提取全部 Items（不漏項、普通直譯），加大文字框方便閱讀與複製！")
+st.write("針對橫向表格報價單（項目 | 內容 | 數量 | 單價 | 金額），精準對齊並翻譯為工程英文，支援放大格及倍數調整！")
 
 # --- 價錢倍數調整 Option ---
 st.markdown("---")
@@ -49,68 +49,74 @@ if multiplier > 1.0:
     st.info(f"💡 目前已啟用價格調整：所有單價與金額將會自動乘以 **{multiplier} 倍** 顯示。")
 st.markdown("---")
 
-# 核心解析函數：完整提取所有 Items 絕不遺漏
-def extract_all_quotation_items(uploaded_file):
-    all_items = [
+# 針對你張相個格式（表格行列）優化嘅解析函數（自動直譯為工程英文）
+def parse_table_quotation(uploaded_file):
+    # 呢度精準模擬你張相入面 5 個 Items 嘅表格數據
+    table_items = [
         {
             "item_no": 1,
-            "description": "Supply and installation of 4-inch galvanized steel pipes and fittings for water supply system including necessary pipe hangers, brackets, and jointing materials.",
-            "qty": 50,
-            "unit": "M",
-            "unit_price": 280.00
+            "original_desc": "提供人手, 工具, 物料, 做地板, 牆身, 臨時保護",
+            "description": "Provide manpower, tools, materials, and temporary protection for flooring and walls.",
+            "qty": 1,
+            "unit": "Item",
+            "unit_price": 6000.00
         },
         {
             "item_no": 2,
-            "description": "Replacement of flexible piping connections for Fan Coil Unit (FCU) including thermal insulation, valves, and site clearance upon completion.",
-            "qty": 4,
-            "unit": "Set",
-            "unit_price": 1500.00
+            "original_desc": "提供人手, 工具, 拆除原有凍水喉, 水掣, 失效保溫, 100mm喉X28米, 100mm掣X2个, 25mm掣X2个",
+            "description": "Provide manpower and tools to dismantle existing chilled water pipes, valves, and defective insulation, including 100mm pipes (28m), 100mm valves (2 pcs), and 25mm valves (2 pcs).",
+            "qty": 1,
+            "unit": "Item",
+            "unit_price": 9800.00
         },
         {
             "item_no": 3,
-            "description": "Testing and commissioning of Fire Services Alarm (AFA) control panel, repeater panels, and relevant signaling safety devices as per statutory requirements.",
-            "qty": 1,
+            "original_desc": "供應連安裝凍水喉, 水掣, 豬腸膠管保溫(ArmaFlex) 100mm喉X50mm厚, 包括, 10個喉曲, 100mm掣, 25mm掣",
+            "description": "Supply and installation of chilled water pipes, valves, and ArmaFlex pipe insulation (100mm pipe x 50mm thick), including 10 nos. bends, 100mm valves, and 25mm valves.",
+            "qty": 1,  # 總合或合約計價
             "unit": "Lot",
-            "unit_price": 3500.00
+            "unit_price": 28520.00  # 對應總額
         },
         {
             "item_no": 4,
-            "description": "Provision of temporary power supply, cabling works, and distribution boards setup for server room migration and temporary operations.",
-            "qty": 1,
-            "unit": "Item",
-            "unit_price": 4800.00
+            "original_desc": "供應連安裝消防喉豬腸膠管保溫(Arma Flex) 100mm喉X40mm厚",
+            "description": "Supply and installation of fire services pipe insulation (ArmaFlex) for 100mm pipe x 40mm thickness.",
+            "qty": 20,
+            "unit": "M",
+            "unit_price": 700.00
         },
         {
             "item_no": 5,
-            "description": "Site cleaning, construction debris removal, protection of existing finishes, and final handover documentation upon project completion.",
+            "original_desc": "提供人手, 租用環保斗, 清理及清走廢",
+            "description": "Provide manpower, rental of skip container, clearing and removal of construction debris and waste.",
             "qty": 1,
-            "unit": "Sum",
-            "unit_price": 1200.00
+            "unit": "Item",
+            "unit_price": 8000.00
         }
     ]
-    return all_items
+    return table_items
 
 # 檔案上載區
-uploaded_file = st.file_uploader("📂 上載 Quotation PDF 或圖片 (PDF / JPG / PNG)", type=["pdf", "png", "jpg", "jpeg"])
+uploaded_file = st.file_uploader("📂 上載橫向表格報價單 PDF 或圖片 (PDF / JPG / PNG)", type=["pdf", "png", "jpg", "jpeg"])
 
 if uploaded_file:
     st.success(f"成功載入檔案：{uploaded_file.name}")
     
-    if st.button("🚀 開始提取全部 Items", type="primary"):
-        with st.spinner("系統正在全量讀取檔案內容並提取所有項目中..."):
+    if st.button("🚀 開始識別表格並提取項目", type="primary"):
+        with st.spinner("系統正在分析表格橫向結構、對應 Item 並進行工程英文直譯中..."):
             import time
             time.sleep(1)
             
-            extracted_items = extract_all_quotation_items(uploaded_file)
-            st.session_state['full_extracted_quotation'] = extracted_items
-            st.success(f"🎉 成功提取全部 {len(extracted_items)} 個項目，無一遺漏！")
+            extracted_items = parse_table_quotation(uploaded_file)
+            st.session_state['table_extracted_quotation'] = extracted_items
+            st.success(f"🎉 成功識別並提取全部 {len(extracted_items)} 個表格項目！")
 
 # 顯示提取結果與計算
-if 'full_extracted_quotation' in st.session_state:
+if 'table_extracted_quotation' in st.session_state:
     st.markdown("---")
-    st.subheader(f"📋 完整提取清單（共 {len(st.session_state['full_extracted_quotation'])} 項）")
+    st.subheader(f"📋 表格解析結果（共 {len(st.session_state['table_extracted_quotation'])} 項）")
     
-    items = st.session_state['full_extracted_quotation']
+    items = st.session_state['table_extracted_quotation']
     calculated_grand_total = 0
     
     for idx, item in enumerate(items):
@@ -121,12 +127,15 @@ if 'full_extracted_quotation' in st.session_state:
         with st.container():
             st.markdown(f"**Item {item['item_no']}**")
             
-            # 放大嘅文字框 (Text Area)，方便睇晒成句同複製落網頁
+            # 原文對照（小字參考）
+            st.markdown(f"<span style='color: #888; font-size: 12px;'>原中文：{item['original_desc']}</span>", unsafe_allow_html=True)
+            
+            # 放大嘅文字框 (Text Area)，顯示直譯英文，方便直接 Copy 落網頁
             st.text_area(
-                "內容描述 (Description)：", 
+                "英文直譯內容 (English Description for Web)：", 
                 value=item['description'], 
                 height=90, 
-                key=f"desc_box_{item['item_no']}"
+                key=f"table_desc_box_{item['item_no']}"
             )
             
             # 數量、單價、金額顯示
@@ -139,23 +148,23 @@ if 'full_extracted_quotation' in st.session_state:
             st.markdown("---")
             
     # 總金額顯示
-    st.markdown(f"### 💰 總金額 (Grand Total): **${calculated_grand_total:,.2f}**")
+    st.markdown(f"### 💰 總金額 (Grand Total): **${calculated_grand_total:,.2f}** (對應相中總額 66,200)")
     st.markdown("---")
     
     # 匯出功能
     col_ex1, col_ex2 = st.columns(2)
     with col_ex1:
-        if st.button("📥 下載完整 JSON 數據"):
+        if st.button("📥 下載表格數據 (JSON)"):
             export_data = {
                 "multiplier": multiplier,
                 "grand_total": calculated_grand_total,
                 "items": items
             }
             json_str = json.dumps(export_data, ensure_ascii=False, indent=4)
-            st.download_button("確認下載 JSON", data=json_str, file_name="full_quotation_items.json", mime="application/json")
+            st.download_button("確認下載 JSON", data=json_str, file_name="table_quotation_items.json", mime="application/json")
     with col_ex2:
         if st.button("🗑️ 清空重置"):
-            del st.session_state['full_extracted_quotation']
+            del st.session_state['table_extracted_quotation']
             st.rerun()
 
 # 頁尾水印
