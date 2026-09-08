@@ -3,9 +3,8 @@ import os
 import json
 from datetime import datetime
 
-# 檢查有無裝好相關套件
 try:
-    import fitz  # PyMuPDF 用黎處理 PDF 轉圖片
+    import fitz  # PyMuPDF 用黎處理 PDF
     HAS_PYMUPDF = True
 except ImportError:
     HAS_PYMUPDF = False
@@ -16,84 +15,123 @@ try:
 except ImportError:
     HAS_PIL = False
 
-st.set_page_config(page_title="E&M Quotation Item 智能提取工具", page_icon="⚡", layout="centered")
+st.set_page_config(page_title="E&M Quotation 項目與金額智能提取系統", page_icon="⚡", layout="centered")
 
-st.title("⚡ E&M Quotation 項目智能提取與英文轉化工具")
+st.title("⚡ E&M Quotation 項目與金額智能提取系統")
 st.caption("✨ System curated & Design by nikki 💅")
-st.write("上載 Quotation PDF 或圖片，AI 自動幫你拆解項目並轉化為專業英文，方便逐個 Item 複製落公司網頁！")
+st.write("上載 PDF 或圖片，自動提取項目文字、數量、單價、金額及總金額，並支援自由調整價錢倍數！")
 
-# 模擬 AI 拆解同翻譯功能 (實際應用時可以接通 API 或者用規則解析)
-def mock_ai_extract_items(file_name):
-    # 呢度模擬當你上載檔案後，AI 幫你抽出黎嘅工程 Items
-    sample_items = [
+# --- 側邊欄或頂部：價錢倍數調整 Option ---
+st.markdown("---")
+st.subheader("⚙️ 報價金額調整設定 (Markup Option)")
+multiplier = st.slider(
+    "選擇價錢調整倍數 (Multiplier) —— 用於自動放大單價及金額：",
+    min_value=1.0, 
+    max_value=2.0, 
+    value=1.0, 
+    step=0.05,
+    format="%.2fx"
+)
+if multiplier > 1.0:
+    st.info(f"💡 目前已啟用價格調整：所有單價與金額將會自動乘以 **{multiplier} 倍** 顯示。")
+st.markdown("---")
+
+# 模擬真實提取出嚟嘅工程項目清單（含數量、單價、金額）
+def mock_extract_quotation_data(file_name):
+    # 呢度模擬從 PDF/圖片中解析出嚟嘅原始數據
+    raw_items = [
         {
             "item_no": 1,
-            "chinese_desc": "供應及安裝 4寸 鍍鋅鋼喉及相關配件",
-            "english_desc": "Supply and installation of 4-inch galvanized steel pipes and associated fittings for water supply system.",
-            "category": "Plumbing & Drainage"
+            "description": "Supply and installation of 4-inch galvanized steel pipes and fittings",
+            "qty": 50,
+            "unit": "M",
+            "unit_price": 280.00
         },
         {
             "item_no": 2,
-            "chinese_desc": "更換冷氣機風機盤管 (FCU) 連接喉管",
-            "english_desc": "Replacement of flexible piping connections for Fan Coil Unit (FCU) including insulation works.",
-            "category": "Air Conditioning (HVAC)"
+            "description": "Replacement of Fan Coil Unit (FCU) connection piping and insulation",
+            "qty": 4,
+            "item": "Set",
+            "unit_price": 1500.00
         },
         {
             "item_no": 3,
-            "chinese_desc": "檢查及測試消防系統警報掣 (AFA Panel)",
-            "english_desc": "Testing and commissioning of Fire Services Alarm (AFA) control panel and related signaling devices.",
-            "category": "Fire Services (FS)"
+            "description": "Testing and commissioning of AFA control panel and safety devices",
+            "qty": 1,
+            "item": "Lot",
+            "unit_price": 3500.00
         }
     ]
-    return sample_items
+    return raw_items
 
-# 上載區
-uploaded_file = st.file_uploader("📂 上載 Quotation PDF 或工程圖片 (JPG/PNG)", type=["pdf", "png", "jpg", "jpeg"])
+# 檔案上載區
+uploaded_file = st.file_uploader("📂 上載 Quotation PDF 或工程圖片 (PDF / JPG / PNG)", type=["pdf", "png", "jpg", "jpeg"])
 
 if uploaded_file:
     st.success(f"成功載入檔案：{uploaded_file.name}")
     
-    if st.button("🚀 開始 AI 智能提取與英文轉化", type="primary"):
-        with st.spinner("AI 正在分析文件結構、提取 Item 並翻譯成專業英文..."):
-            # 模擬處理時間
+    if st.button("🚀 開始提取文字與金額", type="primary"):
+        with st.spinner("AI 正在深度解析文件內容、數量及金額中..."):
             import time
-            time.sleep(1.5)
+            time.sleep(1)
             
-            extracted_items = mock_ai_extract_items(uploaded_file.name)
-            st.session_state['extracted_items'] = extracted_items
-            st.success(f"🎉 成功提取 {len(extracted_items)} 個工程項目！")
+            extracted_data = mock_extract_quotation_data(uploaded_file.name)
+            st.session_state['extracted_quotation'] = extracted_data
+            st.success("🎉 提取成功！")
 
-# 如果已經有提取結果，展示互動列表
-if 'extracted_items' in st.session_state:
+# 顯示提取結果與計算
+if 'extracted_quotation' in st.session_state:
     st.markdown("---")
-    st.subheader("📋 提取結果預覽（可逐個 Item 複製）")
+    st.subheader("📋 提取結果與金額試算")
     
-    for idx, item in enumerate(st.session_state['extracted_items']):
+    items = st.session_state['extracted_quotation']
+    
+    calculated_grand_total = 0
+    
+    for idx, item in enumerate(items):
+        # 計算調整後嘅單價同總金額
+        adjusted_unit_price = item['unit_price'] * multiplier
+        item_total_amount = item['qty'] * adjusted_unit_price
+        calculated_grand_total += item_total_amount
+        
         with st.container():
-            st.markdown(f"**Item {item['item_no']} | 分類：{item['category']}**")
+            st.markdown(f"**Item {item['item_no']}**")
             
-            col1, col2 = st.columns([5, 1])
-            with col1:
-                # 顯示英文版本（網頁用）同中文對照
-                display_text = f"[{item['category']}] {item['english_desc']}"
-                st.code(display_text, language="text")
-            with col2:
+            # 顯示描述文字（方便直接 Copy 落網頁）
+            col_text, col_copy = st.columns([5, 1])
+            with col_text:
+                st.code(item['description'], language="text")
+            with col_copy:
                 st.write("")
-                # 提示
                 st.caption("✨ 準備就緒")
             
-            st.markdown(f"<span style='color: #666; font-size: 13px;'>原中文對照：{item['chinese_desc']}</span>", unsafe_allow_html=True)
+            # 數量、單價、金額顯示
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("數量 (Qty)", f"{item['qty']}")
+            m2.metric("單位", f"{item.get('item', item.get('unit', 'Pcs'))}")
+            m3.metric("單價 (Unit Price)", f"${adjusted_unit_price:,.2f}")
+            m4.metric("金額 (Amount)", f"${item_total_amount:,.2f}")
+            
             st.markdown("---")
             
-    # 批量匯出功能
+    # 總金額顯示
+    st.markdown(f"### 💰 總金額 (Grand Total): **${calculated_grand_total:,.2f}**")
+    st.markdown("---")
+    
+    # 匯出功能
     col_ex1, col_ex2 = st.columns(2)
     with col_ex1:
-        if st.button("📥 下載所有 Items (JSON 格式)"):
-            json_str = json.dumps(st.session_state['extracted_items'], ensure_ascii=False, indent=4)
-            st.download_button("確認下載 JSON", data=json_str, file_name="website_items.json", mime="application/json")
+        if st.button("📥 下載帶有倍數嘅 JSON 數據"):
+            export_data = {
+                "multiplier": multiplier,
+                "grand_total": calculated_grand_total,
+                "items": items
+            }
+            json_str = json.dumps(export_data, ensure_ascii=False, indent=4)
+            st.download_button("確認下載 JSON", data=json_str, file_name="quotation_extracted_items.json", mime="application/json")
     with col_ex2:
         if st.button("🗑️ 清空重置"):
-            del st.session_state['extracted_items']
+            del st.session_state['extracted_quotation']
             st.rerun()
 
 # 頁尾水印
