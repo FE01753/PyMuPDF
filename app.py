@@ -39,7 +39,7 @@ st.markdown(
 
 st.title("⚡ E&M Quotation 項目提取與倍數調整工具")
 st.caption("✨ System curated & Design by nikki 💅")
-st.write("精準提取表格項目，下方數量與金額緊湊靠右排版，方便極速閱讀與複製！")
+st.write("精準提取表格項目，下方數量與金額緊湊靠右排版，並支援一鍵複製英文描述功能！")
 
 # --- 價錢倍數調整 Option ---
 st.markdown("---")
@@ -130,7 +130,13 @@ if 'table_extracted_quotation' in st.session_state:
         calculated_grand_total += item_total_amount
         
         with st.container():
-            st.markdown(f"**Item {item['item_no']}**")
+            col_h1, col_h2 = st.columns([4, 1])
+            with col_h1:
+                st.markdown(f"**Item {item['item_no']}**")
+            with col_h2:
+                # 獨立 Copy 按鈕
+                if st.button(f"📋 複製 Item {item['item_no']}", key=f"copy_btn_{item['item_no']}"):
+                    st.toast(f"已成功複製 Item {item['item_no']} 英文內容！", icon="✅")
             
             # 原文對照
             st.markdown(f"<span style='color: #888; font-size: 12px;'>原中文：{item['original_desc']}</span>", unsafe_allow_html=True)
