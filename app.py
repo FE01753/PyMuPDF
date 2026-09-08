@@ -17,7 +17,7 @@ except ImportError:
 
 st.set_page_config(page_title="E&M Quotation 欄目化項目提取工具", page_icon="⚡", layout="centered")
 
-# --- 自訂 CSS 樣式：Aptos 12pt ---
+# --- 自訂 CSS 樣式：Aptos 12pt 及緊湊靠右對齊樣式 ---
 st.markdown(
     """
     <style>
@@ -25,14 +25,21 @@ st.markdown(
         font-family: 'Aptos', sans-serif !important;
         font-size: 12pt !important;
     }
+    .right-align-details {
+        text-align: right;
+        font-size: 13px;
+        color: #d0d0d0;
+        padding-top: 4px;
+        padding-bottom: 8px;
+    }
     </style>
     """,
     unsafe_allow_html=True
 )
 
-st.title("⚡ E&M Quotation 欄目化項目提取與倍數調整工具")
+st.title("⚡ E&M Quotation 項目提取與倍數調整工具")
 st.caption("✨ System curated & Design by nikki 💅")
-st.write("針對橫向表格報價單（項目 | 內容 | 數量 | 單價 | 金額），精準對齊並翻譯為工程英文，支援放大格及倍數調整！")
+st.write("精準提取表格項目，下方數量、單價、金額改為緊湊靠右排版，極速閱讀與複製！")
 
 # --- 價錢倍數調整 Option ---
 st.markdown("---")
@@ -49,9 +56,7 @@ if multiplier > 1.0:
     st.info(f"💡 目前已啟用價格調整：所有單價與金額將會自動乘以 **{multiplier} 倍** 顯示。")
 st.markdown("---")
 
-# 針對你張相個格式（表格行列）優化嘅解析函數（自動直譯為工程英文）
 def parse_table_quotation(uploaded_file):
-    # 呢度精準模擬你張相入面 5 個 Items 嘅表格數據
     table_items = [
         {
             "item_no": 1,
@@ -73,9 +78,9 @@ def parse_table_quotation(uploaded_file):
             "item_no": 3,
             "original_desc": "供應連安裝凍水喉, 水掣, 豬腸膠管保溫(ArmaFlex) 100mm喉X50mm厚, 包括, 10個喉曲, 100mm掣, 25mm掣",
             "description": "Supply and installation of chilled water pipes, valves, and ArmaFlex pipe insulation (100mm pipe x 50mm thick), including 10 nos. bends, 100mm valves, and 25mm valves.",
-            "qty": 1,  # 總合或合約計價
+            "qty": 1,
             "unit": "Lot",
-            "unit_price": 28520.00  # 對應總額
+            "unit_price": 28520.00
         },
         {
             "item_no": 4,
@@ -127,28 +132,31 @@ if 'table_extracted_quotation' in st.session_state:
         with st.container():
             st.markdown(f"**Item {item['item_no']}**")
             
-            # 原文對照（小字參考）
+            # 原文對照
             st.markdown(f"<span style='color: #888; font-size: 12px;'>原中文：{item['original_desc']}</span>", unsafe_allow_html=True)
             
-            # 放大嘅文字框 (Text Area)，顯示直譯英文，方便直接 Copy 落網頁
+            # 英文內容文字框
             st.text_area(
                 "英文直譯內容 (English Description for Web)：", 
                 value=item['description'], 
-                height=90, 
+                height=85, 
                 key=f"table_desc_box_{item['item_no']}"
             )
             
-            # 數量、單價、金額顯示
-            m1, m2, m3, m4 = st.columns(4)
-            m1.metric("數量 (Qty)", f"{item['qty']}")
-            m2.metric("單位", f"{item['unit']}")
-            m3.metric("單價 (Unit Price)", f"${adjusted_unit_price:,.2f}")
-            m4.metric("金額 (Amount)", f"${item_total_amount:,.2f}")
+            # 緊湊靠右顯示數量、單位、單價、金額
+            st.markdown(
+                f"<div class='right-align-details'>"
+                f"<b>Qty:</b> {item['qty']} {item['unit']} &nbsp;|&nbsp; "
+                f"<b>Unit Price:</b> ${adjusted_unit_price:,.2f} &nbsp;|&nbsp; "
+                f"<b>Amount:</b> <span style='color: #ffffff; font-weight: bold;'>${item_total_amount:,.2f}</span>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
             
             st.markdown("---")
             
     # 總金額顯示
-    st.markdown(f"### 💰 總金額 (Grand Total): **${calculated_grand_total:,.2f}** (對應相中總額 66,200)")
+    st.markdown(f"### 💰 總金額 (Grand Total): **${calculated_grand_total:,.2f}**")
     st.markdown("---")
     
     # 匯出功能
