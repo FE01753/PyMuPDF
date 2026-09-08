@@ -15,60 +15,45 @@ try:
 except ImportError:
     HAS_PIL = False
 
-st.set_page_config(page_title="E&M Quotation Excel 緊湊表格提取", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="E&M Quotation 項目提取工具", page_icon="⚡", layout="centered")
 
-# --- 自訂 CSS 樣式：Excel 風格緊湊表格 ---
+# --- 自訂 CSS 樣式：Aptos 12pt 及緊湊靠右對齊樣式 ---
 st.markdown(
     """
     <style>
     .stTextArea textarea {
         font-family: 'Aptos', sans-serif !important;
-        font-size: 11pt !important;
-        padding: 4px 8px !important;
+        font-size: 12pt !important;
     }
-    table.excel-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-family: 'Aptos', sans-serif;
-        font-size: 12pt;
-        background-color: #1e1e1e;
-        color: #f0f0f0;
-        margin-bottom: 20px;
-    }
-    table.excel-table th, table.excel-table td {
-        border: 1px solid #444444;
-        padding: 8px 10px;
-        vertical-align: middle;
-    }
-    table.excel-table th {
-        background-color: #2d2d2d;
-        color: #ffffff;
-        text-align: center;
+    .right-align-details {
+        text-align: right;
+        font-size: 13px;
+        color: #d0d0d0;
+        padding-top: 2px;
+        padding-bottom: 6px;
     }
     </style>
     """,
     unsafe_allow_html=True
 )
 
-st.title("⚡ E&M Quotation Excel 緊湊表格提取工具")
+st.title("⚡ E&M Quotation 項目提取與倍數調整工具")
 st.caption("✨ System curated & Design by nikki 💅")
-st.write("完美還原 Excel 表格嘅極致緊湊排版，一眼睇晒所有 Items、英文描述與金額試算！")
+st.write("精準提取表格項目，下方數量與金額緊湊靠右排版，方便極速閱讀與複製！")
 
 # --- 價錢倍數調整 Option ---
 st.markdown("---")
-col_opt1, col_opt2 = st.columns([2, 3])
-with col_opt1:
-    multiplier = st.slider(
-        "選擇價錢調整倍數 (Multiplier)：",
-        min_value=1.0, 
-        max_value=1.5, 
-        value=1.0, 
-        step=0.05,
-        format="%.2fx"
-    )
-with col_opt2:
-    if multiplier > 1.0:
-        st.info(f"💡 目前已啟用價格調整：所有單價與金額將自動乘以 **{multiplier} 倍**。")
+st.subheader("⚙️ 報價金額調整設定 (Markup Option)")
+multiplier = st.slider(
+    "選擇價錢調整倍數 (Multiplier) —— 用於自動放大單價及總金額：",
+    min_value=1.0, 
+    max_value=1.5, 
+    value=1.0, 
+    step=0.05,
+    format="%.2fx"
+)
+if multiplier > 1.0:
+    st.info(f"💡 目前已啟用價格調整：所有單價與金額將會自動乘以 **{multiplier} 倍** 顯示。")
 st.markdown("---")
 
 def parse_table_quotation(uploaded_file):
@@ -122,73 +107,59 @@ uploaded_file = st.file_uploader("📂 上載橫向表格報價單 PDF 或圖片
 if uploaded_file:
     st.success(f"成功載入檔案：{uploaded_file.name}")
     
-    if st.button("🚀 開始識別表格並以 Excel 格式展示", type="primary"):
-        with st.spinner("系統正在分析表格並排版中..."):
+    if st.button("🚀 開始識別表格並提取項目", type="primary"):
+        with st.spinner("系統正在分析表格橫向結構、對應 Item 並進行工程英文直譯中..."):
             import time
             time.sleep(1)
             
             extracted_items = parse_table_quotation(uploaded_file)
-            st.session_state['excel_extracted_quotation'] = extracted_items
-            st.success(f"🎉 成功識別全部 {len(extracted_items)} 個項目！")
+            st.session_state['table_extracted_quotation'] = extracted_items
+            st.success(f"🎉 成功識別並提取全部 {len(extracted_items)} 個表格項目！")
 
-# 顯示 Excel 風格緊湊表格
-if 'excel_extracted_quotation' in st.session_state:
+# 顯示提取結果與計算
+if 'table_extracted_quotation' in st.session_state:
     st.markdown("---")
-    st.subheader(f"📊 Excel 緊湊表格檢視（共 {len(st.session_state['excel_extracted_quotation'])} 項）")
+    st.subheader(f"📋 表格解析結果（共 {len(st.session_state['table_extracted_quotation'])} 項）")
     
-    items = st.session_state['excel_extracted_quotation']
+    items = st.session_state['table_extracted_quotation']
     calculated_grand_total = 0
     
-    # 建立表格 HTML 開頭
-    table_html = """
-    <table class="excel-table">
-        <thead>
-            <tr>
-                <th style="width: 6%;">Item</th>
-                <th style="width: 50%;">English Description (for Web)</th>
-                <th style="width: 11%;">Qty</th>
-                <th style="width: 14%;">Unit Price</th>
-                <th style="width: 19%;">Amount</th>
-            </tr>
-        </thead>
-        <tbody>
-    """
-    
-    for item in items:
+    for idx, item in enumerate(items):
         adjusted_unit_price = item['unit_price'] * multiplier
         item_total_amount = item['qty'] * adjusted_unit_price
         calculated_grand_total += item_total_amount
         
-        # 每行的 HTML 結構
-        table_html += f"""
-            <tr>
-                <td style="text-align: center; font-weight: bold;">{item['item_no']}</td>
-                <td>
-                    <div style="font-size: 11pt; margin-bottom: 2px;">{item['description']}</div>
-                    <div style="font-size: 9pt; color: #888;">原中文: {item['original_desc']}</div>
-                </td>
-                <td style="text-align: center;">{item['qty']} {item['unit']}</td>
-                <td style="text-align: right;">${adjusted_unit_price:,.2f}</td>
-                <td style="text-align: right; font-weight: bold; color: #4da6ff;">${item_total_amount:,.2f}</td>
-            </tr>
-        """
-        
-    # 結尾加上總金額行
-    table_html += f"""
-            <tr style="background-color: #252525;">
-                <td colspan="4" style="text-align: right; font-weight: bold;">Grand Total (總金額):</td>
-                <td style="text-align: right; font-weight: bold; color: #4da6ff; font-size: 13pt;">${calculated_grand_total:,.2f}</td>
-            </tr>
-        </tbody>
-    </table>
-    """
-    
-    # 渲染緊湊 Excel 表格
-    st.markdown(table_html, unsafe_allow_html=True)
-    
+        with st.container():
+            st.markdown(f"**Item {item['item_no']}**")
+            
+            # 原文對照
+            st.markdown(f"<span style='color: #888; font-size: 12px;'>原中文：{item['original_desc']}</span>", unsafe_allow_html=True)
+            
+            # 英文內容文字框
+            st.text_area(
+                "英文直譯內容 (English Description for Web)：", 
+                value=item['description'], 
+                height=85, 
+                key=f"table_desc_box_{item['item_no']}"
+            )
+            
+            # 緊湊靠右顯示數量、單位、單價、金額
+            st.markdown(
+                f"<div class='right-align-details'>"
+                f"<b>Qty:</b> {item['qty']} {item['unit']} &nbsp;|&nbsp; "
+                f"<b>Unit Price:</b> ${adjusted_unit_price:,.2f} &nbsp;|&nbsp; "
+                f"<b>Amount:</b> <span style='color: #ffffff; font-weight: bold;'>${item_total_amount:,.2f}</span>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
+            
+            st.markdown("---")
+            
+    # 總金額顯示
+    st.markdown(f"### 💰 總金額 (Grand Total): **${calculated_grand_total:,.2f}**")
     st.markdown("---")
     
-    # 匯出與重置功能
+    # 匯出功能
     col_ex1, col_ex2 = st.columns(2)
     with col_ex1:
         if st.button("📥 下載表格數據 (JSON)"):
@@ -198,10 +169,10 @@ if 'excel_extracted_quotation' in st.session_state:
                 "items": items
             }
             json_str = json.dumps(export_data, ensure_ascii=False, indent=4)
-            st.download_button("確認下載 JSON", data=json_str, file_name="excel_quotation_items.json", mime="application/json")
+            st.download_button("確認下載 JSON", data=json_str, file_name="table_quotation_items.json", mime="application/json")
     with col_ex2:
         if st.button("🗑️ 清空重置"):
-            del st.session_state['excel_extracted_quotation']
+            del st.session_state['table_extracted_quotation']
             st.rerun()
 
 # 頁尾水印
